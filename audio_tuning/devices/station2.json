@@ -1,0 +1,77 @@
+{
+  "schema_version": "car_audio_system_v2",
+  "device_id": "station2",
+  "name": "Станция 2",
+  "has_subwoofer": false,
+  "target": "warm_driver",
+  "head_unit": {
+    "device_type": "bluetooth_speaker"
+  },
+  "microphone_profile": "../microphones/oklick_sm_700g.json",
+  "sweep": {
+    "start_hz": 40.0,
+    "end_hz": 18000.0,
+    "duration_s": {
+      "quick": 5.0,
+      "full": 8.0
+    }
+  },
+  "volume": {
+    "source_percent": 70,
+    "head_unit": 4,
+    "bluetooth_absolute_volume": "не проверено",
+    "reference_condition": "не менять между сравниваемыми пресетами"
+  },
+  "processing": {
+    "source_eq": "off",
+    "head_unit_eq": "manual",
+    "loudness": "off",
+    "speed_compensation": "off",
+    "balance": "center",
+    "fader": "center"
+  },
+  "validation": {
+    "microphone_processing_disabled": false,
+    "repeatability_verified": false,
+    "volume_linearity_verified": false,
+    "dsp_controls_characterized": false
+  },
+  "validation_artifacts": {
+    "repeatability": null,
+    "level_linearity": null
+  },
+  "quality_limits": {
+    "experimental_early_h2_h3_warning_percent": 10.0,
+    "experimental_early_h2_h3_hard_limit_percent": 50.0,
+    "max_repeatability_std_db": 1.0,
+    "max_level_shape_deviation_db": 1.0,
+    "max_dsp_symmetry_error_db_per_db": 0.5,
+    "minimum_score_improvement": 0.1,
+    "max_predicted_zone_regression_db": 0.5,
+    "max_controls_per_iteration": 6,
+    "max_delta_per_control_db": 0.3,
+    "max_total_positive_delta_db": 0.6,
+    "minimum_predicted_headroom_db": 6.0
+  },
+  "delays": {
+    "managed_externally": true,
+    "unit": "cm_or_ms",
+    "settings": {}
+  },
+  "dsp_control_model": {
+    "status": "specified",
+    "band_count": 5,
+    "frequency_range_hz": [60.0, 14000.0],
+    "gain_range_db": [-9.0, 9.0],
+    "center_frequencies_hz": [60.0, 230.0, 910.0, 3600.0, 14000.0],
+    "gain_step_db": 0.1,
+    "q_step": null
+  },
+  "dsp_controls": [
+    {"id": "60", "label": "60 Hz", "center_hz": 60, "q": null, "minimum_db": -9, "maximum_db": 9, "step_db": 0.1},
+    {"id": "230", "label": "230 Hz", "center_hz": 230, "q": null, "minimum_db": -9, "maximum_db": 9, "step_db": 0.1},
+    {"id": "910", "label": "910 Hz", "center_hz": 910, "q": null, "minimum_db": -9, "maximum_db": 9, "step_db": 0.1},
+    {"id": "3600", "label": "3.6 kHz", "center_hz": 3600, "q": null, "minimum_db": -9, "maximum_db": 9, "step_db": 0.1},
+    {"id": "14000", "label": "14 kHz", "center_hz": 14000, "q": null, "minimum_db": -9, "maximum_db": 9, "step_db": 0.1}
+  ]
+}

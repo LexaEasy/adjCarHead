@@ -1,0 +1,93 @@
+{
+  "schema_version": "car_audio_system_v2",
+  "device_id": "aura_indigo_877dsp_mkii",
+  "name": "Автомобильная аудиосистема с Aura INDIGO-877DSP MkII",
+  "has_subwoofer": false,
+  "target": "warm_driver",
+  "head_unit": {
+    "manufacturer": "Aura",
+    "model": "INDIGO-877DSP MkII",
+    "manual_local_path": "C:\\Users\\alexey.kudinov\\Downloads\\avtoproigryvatel-aura-indigo-877dsp-mkii_instrukcia_185502_26042025.pdf",
+    "manual_url": "https://www.aurael.ru/wp-content/uploads/20240701_INDIGO-877DSP_manual_CE_EAC.pdf",
+    "product_url": "https://www.aurael.ru/product/indigo-877dsp/",
+    "nominal_output_frequency_range_hz": [20.0, 20000.0],
+    "rated_power_w_per_channel_at_4_ohm": 16.0,
+    "maximum_power_w_per_channel_at_4_ohm": 51.0,
+    "rca_output_pairs": 4,
+    "rca_max_voltage_v": 4.0,
+    "bluetooth_version": "5.1",
+    "bluetooth_codec": "SBC"
+  },
+  "microphone_profile": "../microphones/oklick_sm_700g.json",
+  "sweep": {
+    "start_hz": 40.0,
+    "end_hz": 18000.0,
+    "duration_s": {
+      "quick": 5.0,
+      "full": 8.0
+    }
+  },
+  "volume": {
+    "source_percent": null,
+    "head_unit": null,
+    "status": "pending_user_reference",
+    "reference_condition": "зафиксировать перед первым сравнительным измерением и не менять в серии"
+  },
+  "processing": {
+    "source_eq": "off_required",
+    "head_unit_eq": "manual",
+    "loudness": "off_required",
+    "bass_boost": "off_required",
+    "speed_compensation": "off_required",
+    "balance": "center_required",
+    "fader": "center_required"
+  },
+  "validation": {
+    "microphone_processing_disabled": false,
+    "repeatability_verified": false,
+    "volume_linearity_verified": false,
+    "dsp_controls_characterized": false
+  },
+  "validation_artifacts": {
+    "repeatability": null,
+    "level_linearity": null
+  },
+  "quality_limits": {
+    "experimental_early_h2_h3_warning_percent": 10.0,
+    "experimental_early_h2_h3_hard_limit_percent": 50.0,
+    "max_repeatability_std_db": 1.0,
+    "max_level_shape_deviation_db": 1.0,
+    "max_dsp_symmetry_error_db_per_db": 0.5,
+    "minimum_score_improvement": 0.1,
+    "max_predicted_zone_regression_db": 0.5,
+    "max_controls_per_iteration": 6,
+    "max_delta_per_control_db": 0.3,
+    "max_total_positive_delta_db": 0.6,
+    "minimum_predicted_headroom_db": 6.0
+  },
+  "delays": {
+    "managed_externally": true,
+    "supported_units": ["cm", "ms"],
+    "range_ms": [0.0, 25.0],
+    "range_cm": [0.0, 850.0],
+    "settings": {}
+  },
+  "dsp_control_model": {
+    "status": "uncharacterized",
+    "equalizer_type": "48_band_parametric",
+    "band_count": 48,
+    "frequency_range_hz": [20.0, 20000.0],
+    "gain_range_db": [-9.0, 9.0],
+    "q_range": [1.0, 10.0],
+    "center_frequencies_hz": null,
+    "gain_step_db": null,
+    "q_step": null,
+    "crossover": {
+      "channel_count": 8,
+      "frequency_range_hz": [10.0, 12500.0],
+      "slope_db_per_octave": [6, 12, 18, 24, 30, 36, 42, 48],
+      "filter_types": ["Butterworth", "Linkwitz-Riley", "Bessel"],
+      "phase_degrees": [0, 180]
+    }
+  }
+}

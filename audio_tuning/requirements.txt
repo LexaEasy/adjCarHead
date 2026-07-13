@@ -1,0 +1,7 @@
+numpy
+scipy
+soundfile
+sounddevice
+pandas
+matplotlib
+tabulate

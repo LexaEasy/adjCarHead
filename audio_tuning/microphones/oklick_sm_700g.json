@@ -1,0 +1,34 @@
+{
+  "schema_version": "measurement_microphone_v1",
+  "microphone_id": "oklick_sm_700g",
+  "name": "Oklick SM-700G",
+  "connection": "wired_usb_type_b_to_type_a",
+  "transducer_type": "condenser",
+  "polar_pattern": "cardioid_unidirectional",
+  "published_frequency_range_hz": [100.0, 18000.0],
+  "target_optimization_range_hz": [100.0, 18000.0],
+  "orientation": {
+    "reference": "front_of_capsule",
+    "vehicle_rule": "направлять фронт капсюля к центру лобового стекла/торпедо",
+    "spatial_rule": "не менять ориентацию относительно автомобиля во всех шести позициях"
+  },
+  "calibration": {
+    "file": null,
+    "individual": false,
+    "absolute_spl_capable": false,
+    "note": "Паспортная чувствительность не является SPL-калибровкой"
+  },
+  "specifications": {
+    "sensitivity_db": -33.0,
+    "sensitivity_tolerance_db": 2.0,
+    "sensitivity_reference": "manufacturer_reference_not_published",
+    "capsule_diameter_mm": 14.0,
+    "cable_length_m": 2.5,
+    "body_material": "aluminum",
+    "microphone_weight_g_without_mount_and_cable": 210.0
+  },
+  "sources": {
+    "manufacturer_manual": "https://static.oklick.ru/data/download/manuals/sm-700g_manual.pdf",
+    "secondary_catalog": "https://www.citilink.ru/product/mikrofon-oklick-sm-700g-chernyi-1456135-1456135/properties/"
+  }
+}
