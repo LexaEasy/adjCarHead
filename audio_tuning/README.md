@@ -4,7 +4,7 @@
 автомобильного аудиотракта методом ESS. Пользовательских режима ровно два:
 
 - `quick` - один замер для быстрого отбора вариантов;
-- `full` - шесть фиксированных позиций для финальной настройки DSP.
+- `full` - шесть фиксированных позиций для точной проверки и доводки DSP.
 
 Генерация сигнала, запись, коррекция clock drift, ESS-деконволюция и отчёт теперь
 являются внутренними стадиями этих режимов. Названия «режим 2» и «режим 4» больше
@@ -70,6 +70,7 @@ Aura INDIGO-877DSP MkII зафиксирована как система без 
   --profile-name preset_candidate `
   --input-device 42 `
   --output-device 21 `
+  --channel stereo `
   --split-streams
 ```
 
@@ -80,21 +81,25 @@ Aura INDIGO-877DSP MkII зафиксирована как система без 
   --baseline-result .\data\outputs\aura_indigo_877dsp_mkii\quick\run_..._center\ess_response.json
 ```
 
-Режим выдаёт `technically_better_candidate`, `technically_worse` или
+Режим выдаёт `technically_better_candidate`, `technically_worse`,
+`candidate_rejected_frequency_coverage_regression` или
 `technically_equivalent_or_inconclusive`, ошибки по зонам, рабочий диапазон, график
 и показатели достоверности. Сравнение отклоняется, если изменились громкость,
 микрофон, устройства или обработка. Улучшение общей стоимости не считается победой,
 если отдельная оптимизируемая зона ухудшилась более чем на допустимый порог.
-Quick не выдаёт финальный DSP-пресет.
+Quick создаёт только состояние `quick_candidate`; технический кандидат требует
+полного измерения и прослушивания.
 
 ## Полный режим
 
 ```powershell
 .\.venv\Scripts\python.exe audio_tuning.py full `
   --device-profile .\devices\aura_indigo_877dsp_mkii.json `
-  --profile-name final_candidate `
+  --profile-name full_candidate `
   --input-device 42 `
   --output-device 21 `
+  --session-purpose baseline `
+  --channel stereo `
   --split-streams
 ```
 
@@ -112,10 +117,38 @@ Quick не выдаёт финальный DSP-пресет.
 штатив, сиденье, входной gain, громкость или настройки тракта.
 
 Полный отчёт содержит среднюю форму АЧХ, P10/P90, стандартное отклонение, SNR,
-confidence, раннюю THD2/THD3, наблюдаемый и оптимизационный диапазоны и подробную
+confidence, экспериментальные ранние H2/H3, наблюдаемый и оптимизационный диапазоны и подробную
 стоимость. Следующая настройка DSP рассчитывается регуляризованным решением только
 по измеренной матрице `frequency × control`. Подъём запрещается для узких провалов
 и зон с пространственным разбросом выше 3 dB.
+
+Кандидат измеряется с `--session-purpose candidate` и ссылкой на агрегированный
+baseline через `--baseline-result`. Положительное full-сравнение переводит результат
+только в `listening_confirmation_required`. После прослушивания оператор выполняет:
+
+```powershell
+.\.venv\Scripts\python.exe audio_tuning.py full `
+  --confirm-listening-result .\data\outputs\...\full_comparison.json `
+  --confirmed-by operator `
+  --listening-notes "Проверено на знакомых композициях"
+```
+
+Только это действие создаёт `confirmed_preset.json`.
+
+## Поканальная диагностика
+
+`--channel left`, `--channel right` и `--channel stereo` являются параметрами обоих
+режимов. Для полной диагностики выполняются три независимые full-сессии 6/6. Затем:
+
+```powershell
+.\.venv\Scripts\python.exe audio_tuning.py full `
+  --compare-channels .\left\spatial_response.json .\right\spatial_response.json .\stereo\spatial_response.json
+```
+
+Отчёт сравнивает уровни, форму, рабочий диапазон, confidence, экспериментальные
+H2/H3, пространственный разброс и дефекты, появляющиеся только при stereo. Выводы
+по каналам разрешены только при `--channel-routing-verified`. Абсолютная задержка
+L/R между отдельными Bluetooth-прогонами и полярность не заявляются.
 
 ## Перед первым звуком
 
@@ -135,9 +168,10 @@ confidence, раннюю THD2/THD3, наблюдаемый и оптимизац
 ## Контроль качества
 
 Для каждого замера сохраняются peak/RMS/crest factor, клиппинг, dropout, шумовой
-фон, SNR, confidence и ранняя THD2/THD3 по 31 третьоктавной полосе. Клиппинг и
-dropout делают замер непригодным. Полосы с низким SNR, сильным roll-off, THD выше
-лимита профиля, плохой повторяемостью или зависимой от громкости формой исключаются
+фон, SNR, confidence и экспериментальные ранние H2/H3 по 31 третьоктавной полосе.
+Dropout анализируется только внутри активного ESS; pre-roll и post-roll в него не
+входят. Клиппинг, dropout или неполный ESS делают замер непригодным. Полосы с низким
+SNR, сильным roll-off, аномальной ранней H2/H3-оценкой, плохой повторяемостью или зависимой от громкости формой исключаются
 из оптимизации, но остаются в диагностике.
 
 Oklick SM-700G имеет паспортный диапазон `100-18000 Hz`, кардиоидную направленность
@@ -153,10 +187,13 @@ SPL не рассчитывается. Классическая coherence без
 ## Проверки
 
 ```powershell
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+ .\.venv\Scripts\python.exe run_tests.py
 .\.venv\Scripts\python.exe audio_tuning.py quick --help
 .\.venv\Scripts\python.exe audio_tuning.py full --help
 ```
+
+Автоматические тесты проверяют программные ограничения, но не акустическую точность.
+После изменений необходимы новые измерения в автомобиле.
 
 Низкоуровневые `generate_test_signals.py`, `measure_playrec.py`,
 `analyze_recordings.py`, `aggregate_spatial.py` и `validate_quick_series.py`
