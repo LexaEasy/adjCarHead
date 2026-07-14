@@ -6,6 +6,7 @@ from config import ANALYSIS_FREQUENCIES_HZ
 from device_profile import DeviceProfile
 from dsp_matrix import DSP_MATRIX_SCHEMA_VERSION
 from validation_analysis import _measurement, _raw, _require_common
+from result_validation import ess_validation_manifest
 
 
 def _matrix_curve(payload: dict[str, object]) -> tuple[np.ndarray, np.ndarray] | None:
@@ -88,6 +89,8 @@ def characterize_dsp(
         )
     measurement = _measurement(baseline)
     source_ids = [str(payload.get("measurement_id")) for payload in all_payloads]
+    if any(not value or value == "None" for value in source_ids) or len(set(source_ids)) != len(source_ids):
+        raise ValueError("DSP characterization requires unique measurement ids")
     return {
         "schema_version": DSP_MATRIX_SCHEMA_VERSION,
         "device_profile_id": profile.device_id,
@@ -100,6 +103,7 @@ def characterize_dsp(
         "analysis_schema_version": baseline.get("analysis_schema_version"),
         "source_signal_id": baseline.get("source_signal_id"),
         "source_measurement_ids": source_ids,
+        "source_validation_manifests": [ess_validation_manifest(payload) for payload in all_payloads],
         "baseline_measurement_id": baseline.get("measurement_id"),
         "frequencies_hz": matrix_frequencies.tolist(),
         "controls": controls,

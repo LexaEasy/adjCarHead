@@ -6,6 +6,8 @@ from pathlib import Path
 
 import numpy as np
 
+from result_validation import require_valid_ess_result
+
 DSP_MATRIX_SCHEMA_VERSION = "dsp_response_matrix_v1"
 
 
@@ -65,6 +67,22 @@ def load_dsp_response_matrix(
         raise ValueError("DSP matrix requires controls")
     response: dict[str, np.ndarray] = {}
     symmetry: dict[str, float] = {}
+    raw_source_ids = data["source_measurement_ids"]
+    if not isinstance(raw_source_ids, list) or not raw_source_ids:
+        raise ValueError("DSP matrix requires source measurement ids")
+    source_measurement_ids = {str(value) for value in raw_source_ids if value}
+    if len(source_measurement_ids) != len(raw_source_ids):
+        raise ValueError("DSP matrix source measurement ids must be unique and non-empty")
+    manifests = data.get("source_validation_manifests")
+    if not isinstance(manifests, list) or len(manifests) != len(source_measurement_ids):
+        raise ValueError("DSP matrix requires a validation manifest for every source measurement")
+    for manifest in manifests:
+        if not isinstance(manifest, dict):
+            raise ValueError("DSP matrix contains an invalid ESS validation manifest")
+        require_valid_ess_result(manifest, expected_mode="quick")
+    manifest_ids = {str(manifest.get("measurement_id")) for manifest in manifests}
+    if manifest_ids != source_measurement_ids:
+        raise ValueError("DSP matrix validation manifests do not match source measurement ids")
     for item in controls:
         if not isinstance(item, dict):
             raise ValueError("DSP matrix control must be an object")
@@ -86,6 +104,8 @@ def load_dsp_response_matrix(
         )
         if any(not item.get(field) for field in measurement_fields):
             raise ValueError(f"DSP control {control_id} has incomplete measurement references")
+        if any(str(item[field]) not in source_measurement_ids for field in measurement_fields):
+            raise ValueError(f"DSP control {control_id} references an unknown measurement")
         values = np.asarray(item.get("response_per_db"), dtype=np.float64)
         if not control_id or values.shape != frequencies.shape or not np.all(np.isfinite(values)):
             raise ValueError(f"Invalid DSP matrix control: {control_id}")

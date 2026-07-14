@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import copy
 import json
 from pathlib import Path
 import tempfile
@@ -31,6 +32,7 @@ class ValidationAnalysisTest(unittest.TestCase):
         raw: np.ndarray,
         volume: str = "reference",
         eq: dict[str, float] | None = None,
+        measurement_id: str | None = None,
     ) -> dict[str, object]:
         identifier = f"measurement-{volume}-{sum((eq or {}).values()):.2f}-{float(np.mean(raw)):.3f}"
         return make_ess_result(
@@ -38,7 +40,7 @@ class ValidationAnalysisTest(unittest.TestCase):
             raw,
             volume=volume,
             eq=eq,
-            measurement_id=identifier,
+            measurement_id=measurement_id or identifier,
         )
 
     def test_repeatability_and_level_linearity_accept_stable_shapes(self) -> None:
@@ -58,7 +60,7 @@ class ValidationAnalysisTest(unittest.TestCase):
         self.assertTrue(linearity["level_response_monotonic"])
 
     def test_dsp_matrix_is_measured_and_used_for_suggestions(self) -> None:
-        baseline = self.payload(self.target + 5.0)
+        baseline = self.payload(self.target + 5.0, measurement_id="baseline")
         variants = []
         for index, control in enumerate(self.profile.dsp_controls):
             influence = np.zeros(31)
@@ -70,11 +72,13 @@ class ValidationAnalysisTest(unittest.TestCase):
                     self.payload(
                         self.target + 5.0 + 2.0 * influence,
                         eq={**self.profile.default_eq(), control.control_id: 2.0},
+                        measurement_id=f"{control.control_id}-plus",
                     ),
                     -2.0,
                     self.payload(
                         self.target + 5.0 - 2.0 * influence,
                         eq={**self.profile.default_eq(), control.control_id: -2.0},
+                        measurement_id=f"{control.control_id}-minus",
                     ),
                 )
             )
@@ -84,6 +88,29 @@ class ValidationAnalysisTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             matrix_path = Path(tmp) / "matrix.json"
             matrix_path.write_text(json.dumps(matrix_payload), encoding="utf-8")
+            rejected_path = Path(tmp) / "rejected.json"
+            rejected = {**matrix_payload, "accepted": False}
+            rejected_path.write_text(json.dumps(rejected), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "not passed"):
+                load_dsp_response_matrix(rejected_path)
+
+            incomplete_path = Path(tmp) / "incomplete.json"
+            incomplete = copy.deepcopy(matrix_payload)
+            incomplete["controls"].pop()
+            incomplete_path.write_text(json.dumps(incomplete), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "do not match"):
+                load_dsp_response_matrix(
+                    incomplete_path,
+                    {control.control_id for control in self.profile.dsp_controls},
+                )
+
+            rejected_control_path = Path(tmp) / "rejected_control.json"
+            rejected_control = copy.deepcopy(matrix_payload)
+            rejected_control["controls"][0]["accepted"] = False
+            rejected_control_path.write_text(json.dumps(rejected_control), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "has not passed"):
+                load_dsp_response_matrix(rejected_control_path)
+
             loaded = load_dsp_response_matrix(
                 matrix_path,
                 {control.control_id for control in self.profile.dsp_controls},
@@ -115,11 +142,27 @@ class ValidationAnalysisTest(unittest.TestCase):
                 baseline["quality"],
                 baseline["measurement"],
             )
+            no_improvement = suggest_dsp(
+                loaded.frequencies_hz,
+                high_target,
+                high_target,
+                np.ones(len(loaded.frequencies_hz), dtype=bool),
+                characterized,
+                characterized.default_eq(),
+                np.zeros(len(loaded.frequencies_hz)),
+                baseline["quality"],
+                baseline["measurement"],
+            )
 
         self.assertEqual(set(loaded.response_per_db), set(characterized.default_eq()))
         self.assertEqual(len(loaded.frequencies_hz), 64)
         self.assertEqual(len(suggestions["suggestions"]), 5)
         self.assertTrue(all(abs(item["new"]) <= 0.3 for item in suggestions["suggestions"]))
+        self.assertFalse(no_improvement["recommendation_accepted"])
+        self.assertIn(
+            "insufficient_predicted_score_improvement",
+            no_improvement["recommendation_rejection_reasons"],
+        )
 
 
 if __name__ == "__main__":
