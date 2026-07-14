@@ -172,7 +172,7 @@ def write_spatial_outputs(
         report.write("\n\n## Контроль качества\n\n```json\n")
         report.write(json.dumps(result.quality, ensure_ascii=False, indent=2))
         report.write("\n```\n")
-        report.write("\n## Финальная рекомендация DSP\n\n")
+        report.write("\n## Технический следующий шаг DSP\n\n")
         if recommendation is None:
             reason = (
                 profile.dsp_recommendation_block_reason()
@@ -183,7 +183,7 @@ def write_spatial_outputs(
         elif recommendation["recommendation_accepted"]:
             changed = [item for item in recommendation["suggestions"] if item["old"] != item["new"]]
             report.write(pd.DataFrame(changed).to_markdown(index=False))
-            report.write("\n\nРекомендация является следующим техническим шагом, а не финальным preset.\n")
+            report.write("\n\nРекомендация является только следующим техническим шагом и требует повторного full.\n")
         else:
             reasons = ", ".join(recommendation["recommendation_rejection_reasons"])
             report.write(f"Прогноз не прошёл защитные ограничения: `{reasons}`. Изменения не выдаются.\n")

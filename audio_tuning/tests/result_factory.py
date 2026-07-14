@@ -6,6 +6,9 @@ import numpy as np
 
 from config import ANALYSIS_FREQUENCIES_HZ
 from frequency_bands import ANALYSIS_SCHEMA_VERSION
+from spatial_positions import SPATIAL_POSITION_KEYS, SPATIAL_SCHEMA_VERSION
+from targets import target_curve_db
+from result_validation import ess_validation_manifest
 
 
 def make_ess_result(
@@ -87,4 +90,64 @@ def make_ess_result(
             "clock_correction": "required",
             "analysis_schema_version": ANALYSIS_SCHEMA_VERSION,
         },
+    }
+
+
+def make_spatial_result(
+    profile: object,
+    curve: np.ndarray,
+    *,
+    purpose: str,
+    channel: str = "stereo",
+    session_id: str | None = None,
+    routing_verified: bool = True,
+) -> dict[str, object]:
+    target = target_curve_db(profile.target_name, ANALYSIS_FREQUENCIES_HZ)
+    invariants = make_ess_result(
+        profile,
+        curve,
+        mode="full",
+        position="left_ear",
+        channel=channel,
+        routing_verified=routing_verified,
+    )["measurement"]
+    invariants["session_purpose"] = purpose
+    source_results = [
+        make_ess_result(
+            profile,
+            curve,
+            mode="full",
+            position=position,
+            session_id=session_id or f"{purpose}-{channel}",
+            date_time=f"2026-07-13T16:{index:02d}:00",
+            channel=channel,
+            routing_verified=routing_verified,
+            measurement_id=f"{purpose}-{channel}-{index}",
+        )
+        for index, position in enumerate(SPATIAL_POSITION_KEYS, start=1)
+    ]
+    for source in source_results:
+        source["measurement"]["session_purpose"] = purpose
+    return {
+        "spatial_schema_version": SPATIAL_SCHEMA_VERSION,
+        "analysis_schema_version": ANALYSIS_SCHEMA_VERSION,
+        "session_id": session_id or f"{purpose}-{channel}",
+        "session_purpose": purpose,
+        "tuning_state": f"full_{purpose}_measured",
+        "position_order": SPATIAL_POSITION_KEYS,
+        "raw_mean_db": curve.tolist(),
+        "aligned_mean_db": curve.tolist(),
+        "standard_deviation_db": [0.5] * 31,
+        "target_db": target.tolist(),
+        "measurement_invariants": invariants,
+        "quality": {
+            "accepted": True,
+            "hard_failures": [],
+            "band_confidence_weight": [1.0] * 31,
+            "early_h2_h3_ratio_percent": [1.0] * 31,
+            "worst_peak_dbfs": -12.0,
+        },
+        "spatial_aggregate_complete": True,
+        "source_measurement_ids": [f"{purpose}-{channel}-{index}" for index in range(1, 7)],
+        "source_validation_manifests": [ess_validation_manifest(value) for value in source_results],
     }

@@ -68,6 +68,16 @@ class QuickReportingTest(unittest.TestCase):
             current_path.write_text(json.dumps(current), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "volume_note"):
                 write_quick_outputs(out, current_path, profile, baseline_path)
+            current["measurement"]["volume_note"] = "reference"
+            current["measurement"]["channel_selection"] = "left"
+            current_path.write_text(json.dumps(current), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "channel_selection"):
+                write_quick_outputs(out, current_path, profile, baseline_path)
+            current["measurement"]["channel_selection"] = "stereo"
+            current["measurement"]["mic_position_id"] = "moved"
+            current_path.write_text(json.dumps(current), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "mic_position_id"):
+                write_quick_outputs(out, current_path, profile, baseline_path)
 
     def test_candidate_cannot_improve_by_losing_reliable_band(self) -> None:
         profile = load_device_profile(ROOT / "devices" / "station2.json")

@@ -45,7 +45,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_measurement_arguments(quick)
     quick.add_argument("--yes", action="store_true", help="Skip the single playback confirmation")
     quick.add_argument("--baseline-result", type=Path)
-    full = subparsers.add_parser("full", help="Six-position final DSP refinement")
+    full = subparsers.add_parser("full", help="Six-position DSP measurement and verification")
     add_measurement_arguments(full, required=False)
     full.add_argument("--session-purpose", choices=("baseline", "candidate"), default="baseline")
     full.add_argument("--baseline-result", type=Path)
@@ -80,7 +80,7 @@ def print_preflight(args: argparse.Namespace, profile: DeviceProfile, signal_dir
     print(f"Сигналы: {signal_dir}")
     print("На выходе: WAV, metadata, ESS-анализ, график и отчёт.")
     if args.mode == "quick":
-        print("Быстрый режим не выдаёт финальный DSP-пресет.")
+        print("Быстрый режим создаёт только технического кандидата и требует full-проверки.")
     else:
         print(f"Назначение full-сессии: {args.session_purpose}")
         print(spatial_sequence_text())
@@ -208,6 +208,8 @@ def main() -> None:
         parser.error("--profile-name must contain only letters, digits, _ or -")
     if args.baseline_result is not None:
         args.baseline_result = args.baseline_result.resolve()
+    if args.mode == "full" and args.session_purpose == "candidate" and args.baseline_result is None:
+        parser.error("Candidate full session requires --baseline-result")
     profile = load_device_profile(args.device_profile)
     profile.parse_eq(args.eq)
     signal_dir = prepare_signals(profile, args.mode)

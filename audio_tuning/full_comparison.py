@@ -9,6 +9,7 @@ from config import NOMINAL_FREQUENCIES_HZ
 from device_profile import DeviceProfile
 from frequency_bands import ANALYSIS_SCHEMA_VERSION
 from scoring import confidence_weights, observed_frequency_mask, score_response
+from result_validation import require_valid_ess_result
 from spatial_positions import SPATIAL_SCHEMA_VERSION
 from tuning_state import TuningState, require_transition
 
@@ -50,6 +51,29 @@ def _load(path: Path, purpose: str) -> dict[str, object]:
         raise ValueError(f"Full {purpose} result has an invalid tuning state")
     if payload.get("position_order") is None or len(payload["position_order"]) != 6:
         raise ValueError("Full comparison requires six positions")
+    quality = payload.get("quality")
+    if not isinstance(quality, dict) or quality.get("accepted") is not True or quality.get("hard_failures"):
+        raise ValueError(f"Full {purpose} result failed quality gates")
+    invariants = payload.get("measurement_invariants")
+    if not isinstance(invariants, dict):
+        raise ValueError(f"Full {purpose} result requires measurement invariants")
+    manifests = payload.get("source_validation_manifests")
+    if not isinstance(manifests, list) or len(manifests) != 6:
+        raise ValueError(f"Full {purpose} result requires six ESS validation manifests")
+    for manifest in manifests:
+        if not isinstance(manifest, dict):
+            raise ValueError(f"Full {purpose} result contains an invalid ESS manifest")
+        require_valid_ess_result(manifest, expected_mode="full")
+        measurement = manifest["measurement"]
+        if (
+            measurement.get("channel_selection") != invariants.get("channel_selection")
+            or measurement.get("session_purpose") != purpose
+            or measurement.get("spatial_session_id") != payload.get("session_id")
+        ):
+            raise ValueError(f"Full {purpose} ESS manifest does not match aggregate context")
+    manifest_ids = {str(manifest.get("measurement_id")) for manifest in manifests}
+    if manifest_ids != set(payload.get("source_measurement_ids", [])):
+        raise ValueError(f"Full {purpose} ESS manifests do not match source measurements")
     return payload
 
 
@@ -61,6 +85,12 @@ def write_full_comparison(
 ) -> Path:
     baseline = _load(baseline_path, "baseline")
     candidate = _load(candidate_path, "candidate")
+    if baseline.get("session_id") == candidate.get("session_id"):
+        raise ValueError("Full baseline and candidate must be different sessions")
+    baseline_ids = set(baseline.get("source_measurement_ids", []))
+    candidate_ids = set(candidate.get("source_measurement_ids", []))
+    if len(baseline_ids) != 6 or len(candidate_ids) != 6 or baseline_ids & candidate_ids:
+        raise ValueError("Full comparison requires distinct 6/6 source measurements")
     base_invariants = baseline.get("measurement_invariants")
     candidate_invariants = candidate.get("measurement_invariants")
     if not isinstance(base_invariants, dict) or not isinstance(candidate_invariants, dict):
@@ -76,6 +106,9 @@ def write_full_comparison(
         raise ValueError("Full comparison requires matching DSP control sets")
 
     target = np.asarray(baseline.get("target_db"), dtype=np.float64)
+    candidate_target = np.asarray(candidate.get("target_db"), dtype=np.float64)
+    if candidate_target.shape != target.shape or not np.allclose(candidate_target, target):
+        raise ValueError("Full comparison targets do not match")
     baseline_curve = np.asarray(baseline.get("aligned_mean_db"), dtype=np.float64)
     candidate_curve = np.asarray(candidate.get("aligned_mean_db"), dtype=np.float64)
     baseline_spatial = np.asarray(baseline.get("standard_deviation_db"), dtype=np.float64)
@@ -118,6 +151,7 @@ def write_full_comparison(
         name: candidate_score.zone_errors_db[name] - value
         for name, value in baseline_score.zone_errors_db.items()
         if value is not None and candidate_score.zone_errors_db.get(name) is not None
+        and not name.endswith("_diagnostic")
     }
     passed = improvement > 0.3 and max(zone_delta.values(), default=0.0) <= 0.5 and not np.any(lost)
     if passed:
@@ -136,6 +170,11 @@ def write_full_comparison(
         "candidate_score": candidate_score.to_dict(),
         "score_improvement": improvement,
         "zone_error_delta_db": zone_delta,
+        "tested_eq_changes": {
+            key: float(candidate_eq[key]) - float(base_eq[key])
+            for key in base_eq
+            if float(candidate_eq[key]) != float(base_eq[key])
+        },
         "technical_state": TuningState.FULL_COMPARISON_PASSED.value if passed else TuningState.FULL_CANDIDATE_MEASURED.value,
         "tuning_state": TuningState.LISTENING_CONFIRMATION_REQUIRED.value if passed else TuningState.FULL_CANDIDATE_MEASURED.value,
         "verdict": "technically_better_candidate" if passed else "candidate_rejected_or_inconclusive",

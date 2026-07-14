@@ -40,6 +40,12 @@ def confirm_listening(
     payload = json.loads(comparison_path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise ValueError("Full comparison must be a JSON object")
+    if (
+        payload.get("comparison_type") != "full_baseline_vs_candidate"
+        or payload.get("technical_state") != TuningState.FULL_COMPARISON_PASSED.value
+        or payload.get("verdict") != "technically_better_candidate"
+    ):
+        raise ValueError("Listening confirmation requires a passed full comparison")
     current = TuningState(str(payload.get("tuning_state")))
     require_transition(current, TuningState.CONFIRMED_PRESET)
     if not confirmed_by.strip() or not listening_notes.strip():

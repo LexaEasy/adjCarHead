@@ -112,7 +112,8 @@ def main() -> None:
     print("Перед замером отключите AGC, шумоподавление и улучшайзеры микрофона.")
     print("Не меняйте громкость, положение микрофона и настройки аудиосистемы во время записи.")
     signal, sample_rate = sf.read(args.signal, always_2d=False)
-    signal_playback = route_output(signal, args.channel, args.output_channels)
+    mono_signal = to_mono(signal)
+    signal_playback = np.repeat(mono_signal[:, np.newaxis], args.output_channels, axis=1)
     if args.pre_roll_s < 0 or args.post_roll_s < 0:
         raise SystemExit("--pre-roll-s and --post-roll-s must be non-negative")
     pre_roll_s = args.pre_roll_s if args.analysis_method == "ess" else 0.0
@@ -132,7 +133,6 @@ def main() -> None:
             post_roll_s,
             TIMING_FINAL_ROLL_SECONDS,
         )
-        playback = route_output(playback, args.channel, args.output_channels)
     else:
         playback = np.pad(
             signal_playback,
@@ -141,6 +141,7 @@ def main() -> None:
                 (0, 0),
             ),
         )
+    playback = route_output(playback, args.channel, args.output_channels)
     if args.split_streams:
         blocksize = 1024
         chunks = []

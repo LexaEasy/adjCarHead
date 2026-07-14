@@ -9,6 +9,7 @@ import pandas as pd
 from config import NOMINAL_FREQUENCIES_HZ
 from frequency_bands import ANALYSIS_SCHEMA_VERSION
 from spatial_positions import SPATIAL_SCHEMA_VERSION
+from result_validation import require_valid_ess_result
 
 
 def _load_channels(paths: list[Path]) -> dict[str, dict[str, object]]:
@@ -25,6 +26,18 @@ def _load_channels(paths: list[Path]) -> dict[str, dict[str, object]]:
         ):
             raise ValueError(f"Invalid full channel result: {path}")
         channel = str(invariants.get("channel_selection"))
+        manifests = payload.get("source_validation_manifests")
+        if not isinstance(manifests, list) or len(manifests) != 6:
+            raise ValueError(f"Full channel result requires six ESS manifests: {path}")
+        for manifest in manifests:
+            if not isinstance(manifest, dict):
+                raise ValueError(f"Invalid ESS manifest in channel result: {path}")
+            require_valid_ess_result(manifest, expected_mode="full")
+            if manifest["measurement"].get("channel_selection") != channel:
+                raise ValueError(f"ESS manifest channel does not match aggregate: {path}")
+        manifest_ids = {str(manifest.get("measurement_id")) for manifest in manifests}
+        if manifest_ids != set(payload.get("source_measurement_ids", [])):
+            raise ValueError(f"Channel ESS manifests do not match source measurements: {path}")
         if channel in results:
             raise ValueError(f"Duplicate full channel result: {channel}")
         results[channel] = payload
@@ -54,6 +67,8 @@ def write_channel_comparison(out: Path, paths: list[Path]) -> Path:
         "ess_parameters",
         "clock_correction",
         "analysis_schema_version",
+        "measurement_mode",
+        "session_purpose",
     )
     for channel, payload in results.items():
         invariants = payload["measurement_invariants"]
@@ -74,6 +89,20 @@ def write_channel_comparison(out: Path, paths: list[Path]) -> Path:
         key: value.get("quality", {}).get("early_h2_h3_ratio_percent")
         for key, value in results.items()
     }
+    working_ranges = {}
+    frequencies = np.asarray(NOMINAL_FREQUENCIES_HZ, dtype=float)
+    for channel, payload in results.items():
+        score = payload.get("score")
+        if isinstance(score, dict) and score.get("observed_low_hz") is not None:
+            working_ranges[channel] = [score.get("observed_low_hz"), score.get("observed_high_hz")]
+            continue
+        confidence = np.asarray(payload.get("quality", {}).get("band_confidence_weight"), dtype=float)
+        observed = frequencies[confidence > 0] if confidence.shape == (31,) else np.asarray([])
+        working_ranges[channel] = (
+            [float(observed[0]), float(observed[-1])] if len(observed) else None
+        )
+    stereo_dips = frequencies[interaction < -3.0].tolist() if routing_verified else []
+    stereo_peaks = frequencies[interaction > 3.0].tolist() if routing_verified else []
     table = pd.DataFrame(
         {
             "frequency_hz": NOMINAL_FREQUENCIES_HZ,
@@ -87,16 +116,17 @@ def write_channel_comparison(out: Path, paths: list[Path]) -> Path:
     )
     result = {
         "comparison_type": "full_left_right_stereo",
-        "source_results": {key: str(path.resolve()) for key, path in zip(("left", "right", "stereo"), paths)},
+        "source_results": [str(path.resolve()) for path in paths],
         "channel_routing_verified": routing_verified,
         "channel_diagnostics_allowed": routing_verified,
         "left_right_level_difference_db": (raw["left"] - raw["right"]).tolist(),
         "left_right_shape_difference_db": (aligned["left"] - aligned["right"]).tolist(),
         "confidence": {key: value.get("quality", {}).get("band_confidence_weight") for key, value in results.items()},
+        "working_range_hz": working_ranges,
         "experimental_distortion": distortion,
         "spatial_standard_deviation_db": {key: value.tolist() for key, value in spatial.items()},
-        "stereo_only_dip_frequencies_hz": np.asarray(NOMINAL_FREQUENCIES_HZ)[interaction < -3.0].tolist(),
-        "stereo_only_peak_frequencies_hz": np.asarray(NOMINAL_FREQUENCIES_HZ)[interaction > 3.0].tolist(),
+        "stereo_only_dip_frequencies_hz": stereo_dips,
+        "stereo_only_peak_frequencies_hz": stereo_peaks,
         "polarity_claim_allowed": False,
         "cross_run_delay_claim_allowed": False,
         "timing_note": "Absolute L/R delay between Bluetooth runs is not reliable.",
