@@ -10,7 +10,7 @@ import numpy as np
 from config import TARGET_DB
 from frequency_bands import ANALYSIS_SCHEMA_VERSION
 from response_alignment import ResponseAlignment, align_response_to_target
-from result_validation import require_valid_ess_result
+from result_validation import ess_validation_manifest, require_valid_ess_result
 from spatial_positions import SPATIAL_POSITION_KEYS, SPATIAL_SCHEMA_VERSION
 from spatial_quality import aggregate_spatial_quality
 from spatial_smoothing import SmoothedSpatialAccumulator
@@ -59,6 +59,7 @@ class SpatialResult:
     smoothed_aligned_mean_db: np.ndarray | None
     smoothed_standard_deviation_db: np.ndarray | None
     source_measurement_ids: tuple[str, ...]
+    source_validation_manifests: tuple[dict[str, object], ...]
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -91,6 +92,7 @@ class SpatialResult:
             "impulse_responses_averaged": False,
             "spatial_aggregate_complete": True,
             "source_measurement_ids": list(self.source_measurement_ids),
+            "source_validation_manifests": list(self.source_validation_manifests),
         }
 
 
@@ -199,4 +201,5 @@ def aggregate_spatial_payloads(
         smoothed_aligned_mean_db=smoothed_aligned_mean,
         smoothed_standard_deviation_db=smoothed_std,
         source_measurement_ids=tuple(measurement_ids),
+        source_validation_manifests=tuple(ess_validation_manifest(payload) for payload in payloads),
     )

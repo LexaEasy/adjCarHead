@@ -48,9 +48,10 @@ def validate_ess_result(
         errors.append("ess_parameters")
     else:
         try:
-            valid_ess = all(
-                float(ess.get(field, 0.0)) > 0.0 for field in ("duration_s", "start_hz", "end_hz")
-            )
+            duration = float(ess.get("duration_s", 0.0))
+            start_hz = float(ess.get("start_hz", 0.0))
+            end_hz = float(ess.get("end_hz", 0.0))
+            valid_ess = duration > 0.0 and 0.0 < start_hz < end_hz
         except (TypeError, ValueError):
             valid_ess = False
         if not valid_ess:
@@ -82,10 +83,15 @@ def validate_ess_result(
             errors.append("measurement_mode")
         if measurement.get("channel_selection") not in CHANNEL_SELECTIONS:
             errors.append("channel_selection")
+        if not isinstance(measurement.get("channel_routing_verified"), bool):
+            errors.append("channel_routing_verified")
         if not (measurement.get("mic_position_id") or measurement.get("mic_position_note")):
             errors.append("mic_position")
         if not isinstance(measurement.get("sample_rate"), int) or measurement.get("sample_rate", 0) <= 0:
             errors.append("sample_rate")
+        for field in ("input_device", "output_device"):
+            if not isinstance(measurement.get(field), int) or measurement.get(field, -1) < 0:
+                errors.append(field)
     return ValidationReport(not errors, tuple(dict.fromkeys(errors)))
 
 
@@ -100,3 +106,22 @@ def require_valid_ess_result(
         expected_mode=expected_mode,
         require_quality_acceptance=require_quality_acceptance,
     ).require()
+
+
+def ess_validation_manifest(result: dict[str, object]) -> dict[str, object]:
+    fields = (
+        "method",
+        "analysis_method",
+        "analysis_schema_version",
+        "clock_drift_compensated",
+        "timing_markers_valid",
+        "measurement_id",
+        "source_signal_id",
+        "inverse_filter_id",
+        "active_ess_complete",
+        "dropout_analysis_scope",
+        "ess_parameters",
+        "quality",
+        "measurement",
+    )
+    return {field: result.get(field) for field in fields}

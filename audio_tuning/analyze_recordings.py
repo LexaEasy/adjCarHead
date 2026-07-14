@@ -9,6 +9,7 @@ from pathlib import Path
 
 import numpy as np
 import soundfile as sf
+from scipy.signal import fftconvolve
 
 from artifact_identity import file_content_id
 from config import ANALYSIS_FREQUENCIES_HZ, TARGET_DB
@@ -38,6 +39,15 @@ def timestamped_out(base: Path | None) -> Path:
 def read_wav(path: Path) -> tuple[np.ndarray, int]:
     samples, sample_rate = sf.read(path, always_2d=False)
     return samples, int(sample_rate)
+
+
+def locate_active_ess(recording: np.ndarray, source: np.ndarray) -> int:
+    recorded_mono = to_mono(recording)
+    source_mono = to_mono(source)
+    if len(recorded_mono) < len(source_mono):
+        return 0
+    correlation = fftconvolve(recorded_mono, source_mono[::-1], mode="valid")
+    return int(np.argmax(np.abs(correlation)))
 
 
 def analyze_zip(
@@ -194,6 +204,11 @@ def analyze_pair(
             **correction.diagnostics(),
         }
     else:
+        active_ess_start = locate_active_ess(recorded, source)
+        available_ess_samples = min(
+            expected_ess_samples,
+            max(0, len(to_mono(recorded)) - active_ess_start),
+        )
         timing_diagnostics = {
             "mode": "off",
             "clock_drift_compensated": False,
