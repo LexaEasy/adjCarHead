@@ -142,6 +142,13 @@ def analyze_pair(
                 "ess_parameters",
             )
         }
+        if analysis_method == "ess":
+            metadata["measurement"]["source_signal_id"] = file_content_id(source_path, "ess")
+            if inverse_filter_path is not None:
+                metadata["measurement"]["inverse_filter_id"] = file_content_id(
+                    inverse_filter_path,
+                    "ess_inverse",
+                )
     if analysis_method == "psd-ratio":
         quality = assess_measurement(recorded, recorded_rate)
         metadata["quality"] = quality
@@ -300,16 +307,8 @@ def analyze_pair(
             "timing": timing_diagnostics,
             "clock_drift_compensated": timing_diagnostics["clock_drift_compensated"],
             "timing_markers_valid": timing_diagnostics["clock_drift_compensated"],
-            "source_signal_id": (
-                measurement_metadata.get("source_signal_id")
-                if measurement_metadata
-                else file_content_id(source_path, "ess")
-            ),
-            "inverse_filter_id": (
-                measurement_metadata.get("inverse_filter_id")
-                if measurement_metadata
-                else file_content_id(inverse_filter_path, "ess_inverse")
-            ),
+            "source_signal_id": file_content_id(source_path, "ess"),
+            "inverse_filter_id": file_content_id(inverse_filter_path, "ess_inverse"),
             "ess_parameters": (
                 measurement_metadata.get("ess_parameters")
                 if measurement_metadata
