@@ -37,7 +37,7 @@ class DeviceProfileTest(unittest.TestCase):
         profile = load_device_profile(ROOT / "devices" / "aura_indigo_877dsp_mkii.json")
 
         self.assertFalse(profile.has_subwoofer)
-        self.assertFalse(profile.volume_reference_ready)
+        self.assertTrue(profile.volume_reference_ready)
         self.assertEqual(profile.default_eq(), {})
         self.assertFalse(profile.dsp_recommendation_eligible)
         self.assertEqual(profile.dsp_control_model["band_count"], 48)

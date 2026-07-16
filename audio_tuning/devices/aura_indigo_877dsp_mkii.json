@@ -28,28 +28,29 @@
     }
   },
   "volume": {
-    "source_percent": null,
-    "head_unit": null,
-    "status": "pending_user_reference",
-    "reference_condition": "зафиксировать перед первым сравнительным измерением и не менять в серии"
+    "source_percent": 65,
+    "head_unit": 24,
+    "status": "fixed_reference",
+    "connection": "wired_aux_3_5_mm",
+    "reference_condition": "AUX 3,5 мм; ноутбук 65%; магнитола 24 из 62; не менять в серии"
   },
   "processing": {
-    "source_eq": "off_required",
-    "head_unit_eq": "manual",
-    "loudness": "off_required",
-    "bass_boost": "off_required",
+    "source_eq": "off",
+    "head_unit_eq": "flat",
+    "loudness": "off",
+    "bass_boost": "off",
     "speed_compensation": "off_required",
-    "balance": "center_required",
-    "fader": "center_required"
+    "balance": "center",
+    "fader": "center"
   },
   "validation": {
-    "microphone_processing_disabled": false,
-    "repeatability_verified": false,
+    "microphone_processing_disabled": true,
+    "repeatability_verified": true,
     "volume_linearity_verified": false,
     "dsp_controls_characterized": false
   },
   "validation_artifacts": {
-    "repeatability": null,
+    "repeatability": "../data/outputs/aura_indigo_877dsp_mkii/validation/repeatability_hu24_stand_horizontal_20260716.json",
     "level_linearity": null
   },
   "quality_limits": {
