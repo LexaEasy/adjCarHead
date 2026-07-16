@@ -28,6 +28,7 @@ from spatial_positions import SPATIAL_POSITION_KEYS, configure_utf8_console, spa
 
 
 CHANNEL_SELECTIONS = ("left", "right", "stereo")
+SPLIT_CAPTURE_TAIL_SECONDS = 2.0
 
 
 def route_output(samples: np.ndarray, channel: str, output_channels: int) -> np.ndarray:
@@ -146,13 +147,14 @@ def main() -> None:
         blocksize = 1024
         chunks = []
         captured_frames = 0
+        capture_target_frames = len(playback) + int(round(SPLIT_CAPTURE_TAIL_SECONDS * sample_rate))
 
         def input_callback(indata, frames, _time, status) -> None:
             nonlocal captured_frames
             if status:
                 print(status)
-            if captured_frames < len(playback):
-                need = len(playback) - captured_frames
+            if captured_frames < capture_target_frames:
+                need = capture_target_frames - captured_frames
                 chunks.append(indata[: min(frames, need)].copy())
                 captured_frames += min(frames, need)
 
@@ -173,8 +175,8 @@ def main() -> None:
             for start in range(0, len(playback), blocksize):
                 chunk = playback[start : start + blocksize].astype("float32")
                 output_stream.write(chunk)
-            deadline = time.monotonic() + 2.0
-            while captured_frames < len(playback) and time.monotonic() < deadline:
+            deadline = time.monotonic() + SPLIT_CAPTURE_TAIL_SECONDS + 1.0
+            while captured_frames < capture_target_frames and time.monotonic() < deadline:
                 time.sleep(0.01)
         recorded = np.vstack(chunks)
     else:
