@@ -166,7 +166,11 @@ def suggest_dsp(
     peak_dbfs = float(quality.get("worst_peak_dbfs", quality.get("peak_dbfs", -6.0)))
     predicted_headroom = -peak_dbfs - total_positive
     rejections = []
-    if score_improvement < profile.quality_limits.get("minimum_score_improvement", 0.1):
+    minimum_predicted_improvement = profile.quality_limits.get(
+        "minimum_predicted_score_improvement",
+        profile.quality_limits.get("minimum_score_improvement", 0.1),
+    )
+    if score_improvement < minimum_predicted_improvement:
         rejections.append("insufficient_predicted_score_improvement")
     if zone_regressions:
         rejections.append("protected_zone_regression")

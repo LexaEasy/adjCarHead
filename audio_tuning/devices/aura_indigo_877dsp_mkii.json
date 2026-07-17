@@ -43,6 +43,26 @@
     "balance": "center",
     "fader": "center"
   },
+  "input_signal_path": {
+    "source": "laptop_wired_aux_3_5_mm",
+    "oem_processing_stage_present": false,
+    "de_equalization_required": false,
+    "status": "direct_aux_no_oem_stage"
+  },
+  "speaker_topology": {
+    "mode": "passive_two_way_shared_output",
+    "active_output_channels": [1, 2],
+    "independent_band_channels": false,
+    "per_band_polarity_control": false
+  },
+  "measurement_reference": {
+    "loopback_available": false,
+    "phase_reliable": false
+  },
+  "crossover_policy": {
+    "mode": "preserve_passive_network",
+    "active_band_crossover_change_allowed": false
+  },
   "validation": {
     "microphone_processing_disabled": true,
     "repeatability_verified": true,
@@ -59,12 +79,25 @@
     "max_repeatability_std_db": 1.0,
     "max_level_shape_deviation_db": 1.0,
     "max_dsp_symmetry_error_db_per_db": 0.5,
-    "minimum_score_improvement": 0.1,
+    "minimum_predicted_score_improvement": 0.1,
     "max_predicted_zone_regression_db": 0.5,
     "max_controls_per_iteration": 6,
     "max_delta_per_control_db": 0.3,
     "max_total_positive_delta_db": 0.6,
     "minimum_predicted_headroom_db": 6.0
+  },
+  "completion_limits": {
+    "target_mean_absolute_error_db": 3.0,
+    "target_median_absolute_error_db": 2.5,
+    "target_percentile_75_absolute_error_db": 3.5,
+    "maximum_persistent_defect_db": 8.0,
+    "minimum_measured_score_improvement_db": 0.3,
+    "maximum_zone_regression_db": 0.5,
+    "maximum_repeatability_percentile_75_db": 1.0,
+    "maximum_spatial_percentile_75_db": 2.0,
+    "maximum_eq_gain_db": 6.0,
+    "minimum_measured_headroom_db": 6.0,
+    "minimum_phase_sum_improvement_db": 1.0
   },
   "delays": {
     "managed_externally": true,

@@ -117,6 +117,10 @@ class ValidationAnalysisTest(unittest.TestCase):
             )
             characterized = replace(
                 self.profile,
+                input_signal_path={
+                    **self.profile.input_signal_path,
+                    "de_equalization_validated": True,
+                },
                 validation={
                     "microphone_processing_disabled": True,
                     "repeatability_verified": True,

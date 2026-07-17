@@ -41,6 +41,13 @@ class DeviceProfileTest(unittest.TestCase):
         self.assertEqual(profile.default_eq(), {})
         self.assertFalse(profile.dsp_recommendation_eligible)
         self.assertEqual(profile.dsp_control_model["band_count"], 48)
+        self.assertEqual(profile.input_processing_status, "direct_aux_no_oem_stage")
+        self.assertTrue(profile.input_path_validated)
+        self.assertFalse(profile.phase_alignment_eligible)
+        self.assertFalse(profile.active_crossover_change_allowed)
+        self.assertEqual(profile.crossover_policy["mode"], "preserve_passive_network")
+        with self.assertRaisesRegex(ValueError, "blocked by the documented speaker topology"):
+            profile.require_active_crossover_change_allowed()
         with self.assertRaisesRegex(ValueError, "not characterized"):
             profile.parse_eq("20=0.1")
 

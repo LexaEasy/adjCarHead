@@ -110,6 +110,7 @@ def load_device_profile_data(path: Path) -> DeviceProfile:
 
     artifacts = data.get("validation_artifacts", {})
     limits = data.get("quality_limits", {})
+    completion_limits = data.get("completion_limits", {})
     return DeviceProfile(
         source_path=resolved,
         schema_version=schema_version,
@@ -130,6 +131,23 @@ def load_device_profile_data(path: Path) -> DeviceProfile:
         else {},
         quality_limits={str(key): float(value) for key, value in limits.items()}
         if isinstance(limits, dict)
+        else {},
+        completion_limits={
+            str(key): float(value) for key, value in completion_limits.items()
+        }
+        if isinstance(completion_limits, dict)
+        else {},
+        input_signal_path=dict(data.get("input_signal_path", {}))
+        if isinstance(data.get("input_signal_path", {}), dict)
+        else {},
+        speaker_topology=dict(data.get("speaker_topology", {}))
+        if isinstance(data.get("speaker_topology", {}), dict)
+        else {},
+        measurement_reference=dict(data.get("measurement_reference", {}))
+        if isinstance(data.get("measurement_reference", {}), dict)
+        else {},
+        crossover_policy=dict(data.get("crossover_policy", {}))
+        if isinstance(data.get("crossover_policy", {}), dict)
         else {},
         delays=_required_object(data, "delays"),
         head_unit=dict(data.get("head_unit", {})) if isinstance(data.get("head_unit", {}), dict) else {},

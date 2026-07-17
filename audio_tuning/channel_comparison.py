@@ -128,6 +128,7 @@ def write_channel_comparison(out: Path, paths: list[Path]) -> Path:
         "stereo_only_dip_frequencies_hz": stereo_dips,
         "stereo_only_peak_frequencies_hz": stereo_peaks,
         "polarity_claim_allowed": False,
+        "phase_alignment_status": "unsupported_without_shared_time_reference",
         "cross_run_delay_claim_allowed": False,
         "timing_note": "Absolute L/R delay between Bluetooth runs is not reliable.",
     }

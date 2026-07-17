@@ -41,6 +41,11 @@ class DeviceProfile:
     validation: dict[str, bool]
     validation_artifacts: dict[str, object]
     quality_limits: dict[str, float]
+    completion_limits: dict[str, float]
+    input_signal_path: dict[str, object]
+    speaker_topology: dict[str, object]
+    measurement_reference: dict[str, object]
+    crossover_policy: dict[str, object]
     delays: dict[str, object]
     head_unit: dict[str, object]
     dsp_control_model: dict[str, object]
@@ -71,12 +76,63 @@ class DeviceProfile:
             and bool(self.dsp_controls)
             and self.dsp_matrix_file is not None
             and self.dsp_matrix_file.exists()
+            and self.input_path_validated
             and all(self.validation.get(check, False) for check in required_checks)
         )
 
     @property
     def volume_reference_ready(self) -> bool:
         return self.volume.get("status") != "pending_user_reference"
+
+    @property
+    def input_processing_status(self) -> str:
+        return str(self.input_signal_path.get("status", "not_documented"))
+
+    @property
+    def input_path_validated(self) -> bool:
+        if self.input_signal_path.get("oem_processing_stage_present") is False:
+            return not bool(self.input_signal_path.get("de_equalization_required"))
+        return bool(self.input_signal_path.get("de_equalization_validated"))
+
+    @property
+    def phase_alignment_eligible(self) -> bool:
+        return bool(
+            self.measurement_reference.get("loopback_available")
+            and self.measurement_reference.get("phase_reliable")
+            and self.speaker_topology.get("independent_band_channels")
+        )
+
+    @property
+    def phase_alignment_status(self) -> str:
+        if self.phase_alignment_eligible:
+            return "measurement_required"
+        return "unsupported_by_current_measurement_path"
+
+    @property
+    def active_crossover_change_allowed(self) -> bool:
+        return bool(
+            self.speaker_topology.get("independent_band_channels")
+            and self.crossover_policy.get("active_band_crossover_change_allowed")
+        )
+
+    def require_active_crossover_change_allowed(self) -> None:
+        if not self.active_crossover_change_allowed:
+            raise ValueError(
+                "Active crossover change is blocked by the documented speaker topology"
+            )
+
+    def workflow_capabilities(self) -> dict[str, object]:
+        return {
+            "input_processing_status": self.input_processing_status,
+            "input_path_validated": self.input_path_validated,
+            "oem_de_equalization_required": bool(
+                self.input_signal_path.get("de_equalization_required")
+            ),
+            "phase_alignment_status": self.phase_alignment_status,
+            "phase_alignment_eligible": self.phase_alignment_eligible,
+            "active_crossover_change_allowed": self.active_crossover_change_allowed,
+            "crossover_policy": self.crossover_policy.get("mode", "not_documented"),
+        }
 
     @property
     def dsp_matrix_file(self) -> Path | None:
@@ -101,6 +157,8 @@ class DeviceProfile:
             reasons.append("не описаны и не охарактеризованы все DSP-регуляторы")
         if self.dsp_matrix_file is None or not self.dsp_matrix_file.exists():
             reasons.append("нет измеренной матрицы воздействия DSP")
+        if not self.input_path_validated:
+            reasons.append("не подтверждена коррекция входного OEM-тракта")
         labels = {
             "microphone_processing_disabled": "не подтверждено отключение обработки микрофона",
             "repeatability_verified": "не подтверждена повторяемость quick-замеров",
@@ -154,6 +212,12 @@ class DeviceProfile:
                 "validation": self.validation,
                 "validation_artifacts": self.validation_artifacts,
                 "quality_limits": self.quality_limits,
+                "completion_limits": self.completion_limits,
+                "input_signal_path": self.input_signal_path,
+                "speaker_topology": self.speaker_topology,
+                "measurement_reference": self.measurement_reference,
+                "crossover_policy": self.crossover_policy,
+                "workflow_capabilities": self.workflow_capabilities(),
                 "dsp_control_model": self.dsp_control_model,
             },
             "microphone_profile": self.microphone_profile.metadata(),
