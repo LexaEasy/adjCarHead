@@ -79,10 +79,10 @@
     "band_count": 48,
     "frequency_range_hz": [20.0, 20000.0],
     "gain_range_db": [-9.0, 9.0],
-    "q_range": [1.0, 10.0],
+    "q_range": [0.0, 12.0],
     "center_frequencies_hz": null,
     "gain_step_db": null,
-    "q_step": null,
+    "q_step": 0.5,
     "crossover": {
       "channel_count": 8,
       "frequency_range_hz": [10.0, 12500.0],
