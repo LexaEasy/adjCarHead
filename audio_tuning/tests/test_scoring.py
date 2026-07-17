@@ -30,6 +30,13 @@ class ScoringTest(unittest.TestCase):
         optimized = np.asarray(score.target_optimization_mask)
 
         self.assertAlmostEqual(score.total_cost, 0.0)
+        self.assertAlmostEqual(score.mean_absolute_error_db, 0.0)
+        self.assertAlmostEqual(score.median_absolute_error_db, 0.0)
+        self.assertAlmostEqual(score.percentile_75_absolute_error_db, 0.0)
+        self.assertAlmostEqual(score.maximum_absolute_error_db, 0.0)
+        self.assertEqual(score.points_within_3_db, score.band_count)
+        self.assertIn("Bass_100_315", score.evaluation_range_metrics)
+        self.assertIn("Critical_2500_5000", score.evaluation_range_metrics)
         self.assertFalse(np.any(observed[frequencies < 40.0]))
         self.assertTrue(np.any(observed[(frequencies >= 40.0) & (frequencies < 100.0)]))
         self.assertFalse(np.any(optimized[frequencies < 100.0]))
@@ -51,6 +58,7 @@ class ScoringTest(unittest.TestCase):
         self.assertFalse(score.observed_frequency_mask[10])
         self.assertFalse(score.target_optimization_mask[10])
         self.assertAlmostEqual(score.target_error_db, 0.0)
+        self.assertAlmostEqual(score.maximum_absolute_error_db, 0.0)
 
     def test_broad_peak_costs_more_than_a_narrow_deep_null(self) -> None:
         peak_response = self.target.copy()

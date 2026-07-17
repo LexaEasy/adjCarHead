@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy as np
 
+from completion_assessment import assess_completion
 from config import NOMINAL_FREQUENCIES_HZ
 from device_profile import DeviceProfile
 from frequency_bands import ANALYSIS_SCHEMA_VERSION
@@ -153,10 +154,35 @@ def write_full_comparison(
         if value is not None and candidate_score.zone_errors_db.get(name) is not None
         and not name.endswith("_diagnostic")
     }
-    passed = improvement > 0.3 and max(zone_delta.values(), default=0.0) <= 0.5 and not np.any(lost)
+    minimum_improvement = profile.completion_limits.get(
+        "minimum_measured_score_improvement_db", 0.3
+    )
+    maximum_zone_regression = profile.completion_limits.get(
+        "maximum_zone_regression_db", 0.5
+    )
+    passed = (
+        improvement > minimum_improvement
+        and max(zone_delta.values(), default=0.0) <= maximum_zone_regression
+        and not np.any(lost)
+    )
     if passed:
         require_transition(TuningState.FULL_CANDIDATE_MEASURED, TuningState.FULL_COMPARISON_PASSED)
         require_transition(TuningState.FULL_COMPARISON_PASSED, TuningState.LISTENING_CONFIRMATION_REQUIRED)
+    assessed_score = candidate_score if passed else baseline_score
+    assessed_spatial = candidate_spatial if passed else baseline_spatial
+    assessed_eq = candidate_eq if passed else base_eq
+    assessed_quality = candidate["quality"] if passed else baseline["quality"]
+    completion = assess_completion(
+        assessed_score,
+        profile,
+        assessed_spatial,
+        assessed_eq,
+        assessed_quality,
+        improvement,
+        max(zone_delta.values(), default=0.0) if passed else 0.0,
+        bool(np.any(lost)) if passed else False,
+        "candidate" if passed else "baseline",
+    )
     result = {
         "comparison_type": "full_baseline_vs_candidate",
         "baseline_result": str(baseline_path.resolve()),
@@ -170,6 +196,12 @@ def write_full_comparison(
         "candidate_score": candidate_score.to_dict(),
         "score_improvement": improvement,
         "zone_error_delta_db": zone_delta,
+        "technical_thresholds": {
+            "minimum_measured_score_improvement_db": minimum_improvement,
+            "maximum_zone_regression_db": maximum_zone_regression,
+        },
+        "workflow_capabilities": profile.workflow_capabilities(),
+        "completion_assessment": completion.to_dict(),
         "tested_eq_changes": {
             key: float(candidate_eq[key]) - float(base_eq[key])
             for key in base_eq

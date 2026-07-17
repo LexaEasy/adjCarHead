@@ -36,6 +36,30 @@ class WorkflowGuardsTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "passed full comparison"):
                 confirm_listening(path, "operator", "listened")
 
+    def test_aura_full_plateau_uses_measured_completion_evidence(self) -> None:
+        profile = load_device_profile(ROOT / "devices" / "aura_indigo_877dsp_mkii.json")
+        target = target_curve_db(profile.target_name, ANALYSIS_FREQUENCIES_HZ)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            baseline = self.write(
+                root / "baseline.json",
+                make_spatial_result(profile, target, purpose="baseline"),
+            )
+            candidate = self.write(
+                root / "candidate.json",
+                make_spatial_result(profile, target, purpose="candidate"),
+            )
+            comparison = write_full_comparison(root, baseline, candidate, profile)
+            payload = json.loads(comparison.read_text(encoding="utf-8"))
+
+        self.assertEqual(
+            payload["completion_assessment"]["status"], "stop_recommended"
+        )
+        self.assertEqual(
+            payload["completion_assessment"]["phase_check_status"],
+            "unsupported_by_current_measurement_path",
+        )
+
     def test_full_comparison_requires_listening_before_confirmation(self) -> None:
         baseline_curve = self.target.copy()
         baseline_curve[13:16] += 5.0
@@ -53,6 +77,9 @@ class WorkflowGuardsTest(unittest.TestCase):
             payload = json.loads(comparison.read_text(encoding="utf-8"))
             self.assertEqual(payload["tuning_state"], "listening_confirmation_required")
             self.assertFalse(payload["final_verdict_allowed"])
+            self.assertEqual(
+                payload["completion_assessment"]["status"], "insufficient_evidence"
+            )
             confirmed = confirm_listening(comparison, "operator", "balanced on reference tracks")
             confirmed_payload = json.loads(confirmed.read_text(encoding="utf-8"))
             self.assertEqual(confirmed_payload["tuning_state"], "confirmed_preset")
@@ -73,6 +100,10 @@ class WorkflowGuardsTest(unittest.TestCase):
             result = write_channel_comparison(root / "report", paths)
             report = json.loads(result.read_text(encoding="utf-8"))
             self.assertFalse(report["polarity_claim_allowed"])
+            self.assertEqual(
+                report["phase_alignment_status"],
+                "unsupported_without_shared_time_reference",
+            )
             self.assertFalse(report["cross_run_delay_claim_allowed"])
 
             duplicate = json.loads(paths[1].read_text(encoding="utf-8"))

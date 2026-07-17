@@ -84,6 +84,9 @@ def write_spatial_outputs(
         profile.dsp_recommendation_block_reason() if profile is not None else "Не передан профиль системы"
     )
     response_payload["equipment"] = profile.equipment_metadata() if profile is not None else None
+    response_payload["workflow_capabilities"] = (
+        profile.workflow_capabilities() if profile is not None else None
+    )
     if profile is not None:
         score = score_response(
             result.aligned_mean_db,
@@ -141,6 +144,15 @@ def write_spatial_outputs(
         report.write("\n\nИмпульсные характеристики между позициями не усреднялись.\n\n")
         report.write(f"Целевой профиль: `{result.target_name}`.\n\n")
         report.write("Задержки DSP сохранены как внешние метаданные и не оптимизируются.\n\n")
+        if profile is not None:
+            capabilities = profile.workflow_capabilities()
+            report.write(
+                "Статусы тракта: "
+                f"вход — `{capabilities['input_processing_status']}`; "
+                f"фаза — `{capabilities['phase_alignment_status']}`; "
+                f"активное изменение кроссовера — "
+                f"`{capabilities['active_crossover_change_allowed']}`.\n\n"
+            )
         if score is not None:
             report.write("## Итоговая оценка\n\n")
             report.write(
@@ -151,12 +163,19 @@ def write_spatial_outputs(
                         "target_optimization_mask",
                         "confidence_weights",
                         "zone_errors_db",
+                        "evaluation_range_metrics",
                     ]
                 )
                 .to_markdown(index=False, floatfmt=".2f")
             )
             report.write("\n\n## Ошибка по зонам\n\n")
             report.write(pd.DataFrame([score.zone_errors_db]).to_markdown(index=False, floatfmt=".2f"))
+            report.write("\n\n## Обязательные диапазоны\n\n")
+            report.write(
+                pd.DataFrame.from_dict(
+                    score.evaluation_range_metrics, orient="index"
+                ).to_markdown(floatfmt=".2f")
+            )
             report.write(
                 f"\n\nНаблюдаемый диапазон: **{score.observed_low_hz:g}-"
                 f"{score.observed_high_hz:g} Hz**. Точная оптимизация: "

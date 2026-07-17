@@ -25,6 +25,19 @@ def artifact_values(
     return band_values(data.get(field)) if isinstance(data, dict) else None
 
 
+def artifact_scalar(
+    profile: DeviceProfile,
+    artifact_key: str,
+    field: str,
+) -> float | None:
+    path = profile.validation_artifact_path(artifact_key)
+    if path is None or not path.exists():
+        return None
+    data = json.loads(path.read_text(encoding="utf-8"))
+    value = data.get(field) if isinstance(data, dict) else None
+    return float(value) if isinstance(value, (int, float)) else None
+
+
 def quality_constraint_masks(
     profile: DeviceProfile,
     quality: dict[str, object] | None,

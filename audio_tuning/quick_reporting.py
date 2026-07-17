@@ -101,6 +101,8 @@ def _technical_verdict(
     baseline_score: object,
     current_score: object,
     frequency_coverage_regression: bool,
+    minimum_improvement_db: float,
+    maximum_zone_regression_db: float,
 ) -> tuple[str, float, dict[str, float]]:
     delta = baseline_score.total_cost - current_score.total_cost
     zone_delta = {
@@ -116,9 +118,13 @@ def _technical_verdict(
     )
     if frequency_coverage_regression:
         verdict = "candidate_rejected_frequency_coverage_regression"
-    elif delta > 0.3 and worst_zone_regression <= 0.5 and confidence_change >= -0.1:
+    elif (
+        delta > minimum_improvement_db
+        and worst_zone_regression <= maximum_zone_regression_db
+        and confidence_change >= -0.1
+    ):
         verdict = "technically_better_candidate"
-    elif delta < -0.3 or worst_zone_regression > 1.0:
+    elif delta < -minimum_improvement_db or worst_zone_regression > 1.0:
         verdict = "technically_worse"
     else:
         verdict = "technically_equivalent_or_inconclusive"
@@ -158,7 +164,11 @@ def write_quick_outputs(
             baseline_payload, profile, comparison_mask, comparison_weights
         )
         verdict, delta, zone_delta = _technical_verdict(
-            baseline_score, current_score, bool(lost_frequencies)
+            baseline_score,
+            current_score,
+            bool(lost_frequencies),
+            profile.completion_limits.get("minimum_measured_score_improvement_db", 0.3),
+            profile.completion_limits.get("maximum_zone_regression_db", 0.5),
         )
 
     target = target_curve_db(profile.target_name, ANALYSIS_FREQUENCIES_HZ)
@@ -179,6 +189,12 @@ def write_quick_outputs(
         "lost_reliable_band_count": len(lost_frequencies),
         "lost_reliable_band_frequencies_hz": lost_frequencies,
         "frequency_coverage_regression": bool(lost_frequencies),
+        "workflow_capabilities": profile.workflow_capabilities(),
+        "completion_assessment": {
+            "status": "insufficient_evidence",
+            "reason": "full_six_position_comparison_required",
+            "requires_listening_confirmation": True,
+        },
         "current_score": current_score.to_dict(),
         "baseline_score": baseline_score.to_dict() if baseline_score else None,
         "final_dsp_eligible": False,
@@ -222,9 +238,16 @@ def write_quick_outputs(
         score_row.pop("target_optimization_mask")
         score_row.pop("confidence_weights")
         score_row.pop("zone_errors_db")
+        score_row.pop("evaluation_range_metrics")
         report.write(pd.DataFrame([score_row]).to_markdown(index=False, floatfmt=".2f"))
         report.write("\n\n## Ошибка по зонам\n\n")
         report.write(pd.DataFrame([current_score.zone_errors_db]).to_markdown(index=False, floatfmt=".2f"))
+        report.write("\n\n## Обязательные диапазоны\n\n")
+        report.write(
+            pd.DataFrame.from_dict(
+                current_score.evaluation_range_metrics, orient="index"
+            ).to_markdown(floatfmt=".2f")
+        )
         report.write(
             f"\n\nНаблюдаемый диапазон: **{current_score.observed_low_hz:g}-"
             f"{current_score.observed_high_hz:g} Hz**. Точная оптимизация: "

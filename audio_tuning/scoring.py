@@ -7,6 +7,7 @@ import numpy as np
 from config import NOMINAL_FREQUENCIES_HZ
 from device_profile import DeviceProfile
 from quality_constraints import artifact_values, quality_constraint_masks
+from response_metrics import calculate_response_error_metrics
 
 
 ZONES_HZ = {
@@ -20,11 +21,31 @@ ZONES_HZ = {
     "Air_diagnostic": (10000.0, 16000.0, False),
 }
 
+EVALUATION_RANGES_HZ = {
+    "Bass_100_315": (100.0, 315.0, True),
+    "Lower_mid_400_800": (400.0, 800.0, True),
+    "Mid_1000_2000": (1000.0, 2000.0, True),
+    "Critical_2500_5000": (2500.0, 5000.0, True),
+    "Treble_6300_10000": (6300.0, 10000.0, True),
+    "Air_12500_16000_diagnostic": (12500.0, 16000.0, False),
+}
+
 
 @dataclass(frozen=True)
 class ScoreResult:
     total_cost: float
     target_error_db: float
+    mean_absolute_error_db: float
+    median_absolute_error_db: float
+    percentile_75_absolute_error_db: float
+    maximum_absolute_error_db: float
+    maximum_positive_deviation_db: float
+    maximum_negative_deviation_db: float
+    mean_signed_deviation_db: float
+    minimum_response_db: float
+    maximum_response_db: float
+    points_within_3_db: int
+    band_count: int
     broad_peak_error_db: float
     deficit_error_db: float
     spatial_variance_penalty: float
@@ -41,6 +62,7 @@ class ScoreResult:
     target_optimization_mask: list[bool]
     confidence_weights: list[float]
     zone_errors_db: dict[str, float | None]
+    evaluation_range_metrics: dict[str, dict[str, float | int] | None]
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -139,6 +161,7 @@ def score_response(
     deficit_weight = np.where(broad_deficit, 0.75, 0.25)
     correction_cost = 1.25 * peaks + deficit_weight * deficits
     absolute_error = np.abs(residual)
+    response_metrics = calculate_response_error_metrics(response, target, scored)
     target_error = _weighted_mean(correction_cost[scored], score_weights[scored])
     if target_error is None:
         raise ValueError("No reliable bands remain in the usable frequency range")
@@ -152,6 +175,15 @@ def score_response(
         zone_errors[name] = _weighted_mean(absolute_error[mask], zone_weights)
         if not optimized and zone_errors[name] is not None:
             zone_errors[name] = round(float(zone_errors[name]), 6)
+    evaluation_ranges: dict[str, dict[str, float | int] | None] = {}
+    for name, (lower, upper, optimized) in EVALUATION_RANGES_HZ.items():
+        base_mask = scored if optimized else observed
+        range_mask = base_mask & (frequencies >= lower) & (frequencies <= upper)
+        evaluation_ranges[name] = (
+            calculate_response_error_metrics(response, target, range_mask).to_dict()
+            if np.any(range_mask)
+            else None
+        )
     spatial_penalty = 0.0
     if spatial_std_db is not None:
         spatial = np.asarray(spatial_std_db, dtype=np.float64)
@@ -182,6 +214,7 @@ def score_response(
             + instability_penalty
         ),
         target_error_db=target_error,
+        **response_metrics.to_dict(),
         broad_peak_error_db=broad_peak_error,
         deficit_error_db=deficit_error,
         spatial_variance_penalty=spatial_penalty,
@@ -200,4 +233,5 @@ def score_response(
         target_optimization_mask=scored.tolist(),
         confidence_weights=confidence.tolist(),
         zone_errors_db=zone_errors,
+        evaluation_range_metrics=evaluation_ranges,
     )
