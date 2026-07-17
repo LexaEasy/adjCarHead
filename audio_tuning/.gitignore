@@ -6,3 +6,6 @@ tests/__pycache__/
 data/recordings/
 data/outputs/
 data/test_signals/
+data/validation/
+.artifact_build/
+outputs/
